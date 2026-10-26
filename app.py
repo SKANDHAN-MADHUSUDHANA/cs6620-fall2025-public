@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 from flask_cors import CORS
 from pydub import AudioSegment
 import tempfile
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -140,12 +141,41 @@ def serve_audio_segment():
         app.logger.error(f"Error extracting audio segment: {e}")
         return f"Error extracting audio segment: {str(e)}", 500
 
+# Recorded once when the container starts, so it shows when this deployment went live
+DEPLOYED_AT = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
 @app.route('/')
 def index():
     """
-    Renders the main HTML page for the client-side audio player.
+    Renders the main HTML page for the client-side audio player,
+    with a Version 2.0 banner showing it was deployed automatically.
     """
-    return render_template('index.html') 
+    html = render_template('index.html')
+    banner = f'''
+    <div style="background:#e8f5e9;border:2px solid #2e7d32;border-radius:8px;
+                padding:12px 16px;margin:12px;font-family:sans-serif;">
+      <h2 style="margin:0 0 6px;">Hello from Automated CI/CD Pipeline!</h2>
+      <p style="margin:2px 0;"><strong>Version:</strong> 2.0 - Automated Deployment</p>
+      <p style="margin:2px 0;"><strong>Deployed via:</strong> GitHub Actions + AWS SSM</p>
+      <p style="margin:2px 0;"><strong>Build Date:</strong> {DEPLOYED_AT}</p>
+      <p style="margin:2px 0;"><strong>Assignment:</strong> Automated EC2 Deployment</p>
+    </div>
+    '''
+    if re.search(r'<body[^>]*>', html):
+        return re.sub(r'(<body[^>]*>)', lambda m: m.group(1) + banner, html, count=1)
+    return banner + html
+
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'version': '2.0',
+        'deployment_method': 'automated',
+        'deployed_at': DEPLOYED_AT,
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/select_directory', methods=['POST'])
 def select_directory():
